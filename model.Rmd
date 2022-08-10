@@ -1,0 +1,80 @@
+---
+title: "sentence complition"
+author: "omar marey"
+date: "12/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## loading library
+```{r }
+library(quanteda)
+library(data.table)
+library(sqldf)
+```
+
+## 
+
+
+```{r}
+blogs<-readLines('final/en_US/en_US.blogs.txt')
+twitter <- readLines('final/en_US/en_US.twitter.txt')
+news <- readLines('final/en_US/en_US.news.txt')
+set.seed(0)
+
+tw_s<- twitter[1 == rbinom(length(twitter),1,.05)]
+news_s <- news[1 == rbinom(length(news),1,.05)]
+blogs_s <- blogs[1== rbinom(length(blogs),1,.05)]
+
+total <- c(tw_s,news_s,blogs_s)
+
+total_tokens <- tokens(total,remove_numbers = TRUE
+                        , remove_punct   = TRUE
+                        , remove_symbols = TRUE
+                        , remove_separators = TRUE
+                        , remove_twitter = TRUE
+                        , remove_hyphens = TRUE
+                        , remove_url = TRUE
+                        , verbose = TRUE)
+
+rm(blogs);rm(twitter);rm(news);rm(blogs);rm(blogs_s);rm(news_s);rm(tw_s)
+
+uni_gram <- tokens_ngrams(total_tokens,n=1)
+di_gram <- tokens_ngrams(total_tokens,n=2 )
+tri_gram <- tokens_ngrams(total_tokens,n=3)
+qua_gram <- tokens_ngrams(total_tokens,n=4)
+pent_gram <- tokens_ngrams(total_tokens,n=5)
+
+library(quanteda.textstats)
+
+freq_uni <- textstat_frequency(dfm(uni_gram))
+
+freq_di <- textstat_frequency(dfm(di_gram))
+
+freq_tri <- textstat_frequency(dfm(tri_gram))
+
+freq_qua <- textstat_frequency(dfm(qua_gram))
+
+freq_pent <- textstat_frequency(dfm(pent_gram))
+
+
+write.csv(freq_uni,'freq_uni.csv',row.names = F,col.names = TRUE)
+write.csv(freq_di,'freq_di.csv',col.names = T)
+write.csv(freq_tri,'freq_tri.csv',col.names = T)
+write.csv(freq_qua,'freq_qua.csv',col.names = T)
+write.csv(freq_pent,'freq_pent.csv',col.names = T)
+
+
+
+test <- read.csv('freq_di.csv')
+
+test <- data.table(test)
+query <- test[feature %like% 'heat',]
+
+query
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,183 @@
+---
+title: "capstone"
+author: "omar marey"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+
+## Getting and unziping  data
+here i download the file from provided link and unzipit at 
+the CWD
+
+
+```{r}
+
+
+url <- 'https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip'
+if(!file.exists('swiftkey.zip')){
+        download.file(url,'swiftkey.zip')
+        unzip('swiftkey.zip')}
+
+```
+
+
+reading text files:
+
+```{r }
+twitter_en <-readLines('final/en_US/en_US.twitter.txt')
+blogs_en <- readLines('final/en_US/en_US.blogs.txt')
+news_en <- readLines('final/en_US/en_US.news.txt')
+
+```
+
+## Exploring the data
+
+here i get the size of  the files and the number of lines in each and the 
+length of the longest line in each
+```{r}
+# size of blogs file
+blogs_size_mb <- print(as.numeric(file.info('final/en_US/en_US.blogs.txt')$size)/1024^2)
+news_size_mb <-print(as.numeric(file.info('final/en_US/en_US.news.txt')$size)/1024^2)
+tw_size_mb <- print(as.numeric(file.info('final/en_US/en_US.twitter.txt')$size)/1024^2)
+# number of lines in twitter file 
+length(twitter_en)
+length(news_en)
+length(blogs_en)
+# number of characters in longest line in each file
+max(nchar(blogs_en)); max(nchar(news_en)); max(nchar(twitter_en))
+```
+here i count the number of word in each file 
+```{r}
+library(stringi)
+# number of words in each file
+
+blogs_en_w <- sum(stri_count_words(blogs_en))
+news_en_w <-sum(stri_count_words(news_en))
+twitter_en_w <- sum(stri_count_words(twitter_en))
+c('blogs :',blogs_en_w,'news :', news_en_w,'twitter :', twitter_en_w)
+
+```
+
+## Data sampling 
+here i sample the data to be able to work with it as my laptop can't handle 
+the big data size
+```{r}
+set.seed(0)
+
+tw_s<- twitter_en[1 == rbinom(length(twitter_en),1,.1)]
+news_s <- news_en[1 == rbinom(length(news_en),1,.1)]
+blogs_s <- blogs_en[1== rbinom(length(blogs_en),1,.1)]
+
+dir.create('samples')
+
+write.table(blogs_s, file = "samples/blogs_s.csv", 
+          row.names = FALSE, col.names = FALSE)
+write.table(news_s, file = "samples/news_s.csv", 
+          row.names = FALSE, col.names = FALSE)
+write.table(tw_s, file = "samples/twitter_s.csv", 
+          row.names = FALSE, col.names = FALSE)
+```
+## Cleaning data
+here i use tm package to clean the text data there is more to be done but 
+my laptop can't handle more as it require alot of processing power
+```{r}
+library(tm)
+
+docs <- Corpus(DirSource('samples/'))
+
+docs <- tm_map(docs, removeNumbers)
+docs <- tm_map(docs, removePunctuation)
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, tolower)
+
+ 
+```
+
+
+## Tokeniztion
+here i use RWeka package to tokenize the data using uni , bi , trigram tokenizer
+```{r}
+library(RWeka)
+# Define Tokenizer, 2- and 3- gram
+
+unigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min=1, max=1))
+tdm <- TermDocumentMatrix(docs, control = list(tokenize = unigramTokenizer))
+
+bigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min=2, max=2))
+tdm2 <- TermDocumentMatrix(docs, control = list(tokenize = bigramTokenizer))
+
+trigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min=3, max=3))
+tdm3 <- TermDocumentMatrix(docs, control = list(tokenize = trigramTokenizer))
+```
+## Ploting
+using ggplot2 to plot histograms of the most frequent tokens in the unigram 
+termdocument
+
+```{r}
+library('ggplot2')
+library('dplyr')
+
+frequentTerms <- findFreqTerms(tdm, lowfreq = 2000)
+termFreq <- rowSums(as.matrix(tdm[frequentTerms,])) %>%
+            data.frame(unigram=names(.), frequency=.) %>%
+            arrange(desc(frequency)) %>%
+            top_n(25, frequency)
+
+g <- ggplot(termFreq, aes(x=unigram, y=frequency)) +
+     geom_bar(stat = "identity", fill="blue") +
+     theme(legend.title=element_blank()) +
+     xlab("Unigram") + ylab("Frequency of Occurence") +
+     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+     labs(title = "Unigram by Frequency of Occurence")
+g
+
+```
+
+here i plot histogram for the most frequent tokens in bigram termdocument
+
+```{r} 
+frequentTerms <- findFreqTerms(tdm2, lowfreq = 2000)
+termFreq <- rowSums(as.matrix(tdm2[frequentTerms,])) %>%
+            data.frame(unigram=names(.), frequency=.) %>%
+            arrange(desc(frequency)) %>%
+            top_n(25, frequency)
+
+g <- ggplot(termFreq, aes(x=unigram, y=frequency)) +
+     geom_bar(stat = "identity", fill="blue") +
+     theme(legend.title=element_blank()) +
+     xlab("Bigram") + ylab("Frequency of Occurence") +
+     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+     labs(title = "Bigram by Frequency of Occurence")
+g
+
+```
+
+here i plot histogram for the most frequent tokens in the trigram termdocument
+
+```{r}
+
+
+frequentTerms <- findFreqTerms(tdm3)
+termFreq <- rowSums(as.matrix(tdm3[frequentTerms,])) %>%
+            data.frame(unigram=names(.), frequency=.) %>%
+            arrange(desc(frequency)) %>%
+            top_n(25, frequency)
+
+g <- ggplot(termFreq, aes(x=unigram, y=frequency)) +
+     geom_bar(stat = "identity", fill="blue") +
+     theme(legend.title=element_blank()) +
+     xlab("Trigram") + ylab("Frequency of Occurence") +
+     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+     labs(title = "Trigram by Frequency of Occurence")
+g
+
+
+```
